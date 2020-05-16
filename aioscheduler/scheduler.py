@@ -46,7 +46,7 @@ class Scheduler:
         # Event fired when the loop needs to reset
         self._restart = asyncio.Event()
 
-    def run(self) -> None:
+    def start(self) -> None:
         self._task = asyncio.create_task(self.loop())
 
     async def loop(self) -> None:

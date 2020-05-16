@@ -42,9 +42,9 @@ class Manager:
         for i in range(tasks):
             self._schedulers.append(Scheduler())
 
-    def run(self) -> None:
+    def start(self) -> None:
         for sched in self._schedulers:
-            sched.run()
+            sched.start()
 
     def schedule(self, coro: Awaitable[Any], when: datetime) -> None:
         # Find the scheduler with less load

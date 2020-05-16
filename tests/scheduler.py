@@ -15,7 +15,7 @@ async def work(n: int) -> None:
 async def main() -> None:
     starting_time = datetime.utcnow()
     scheduler = Scheduler()
-    scheduler.run()
+    scheduler.start()
 
     for i in range(60):
         scheduler.schedule(work(i), starting_time + timedelta(seconds=5 + i))
