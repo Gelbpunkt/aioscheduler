@@ -1,10 +1,9 @@
 ---
 name: Bug report
 about: Create a report to help us improve
-title: ''
-labels: ''
-assignees: ''
-
+title: ""
+labels: ""
+assignees: ""
 ---
 
 **Describe the bug**
@@ -20,6 +19,7 @@ A clear and concise description of what you expected to happen.
 The actual result of the code.
 
 **Library and Python version**
+
 - Library:
 - Python:
 
