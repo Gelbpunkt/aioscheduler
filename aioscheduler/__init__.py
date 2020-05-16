@@ -25,7 +25,7 @@ from .manager import Manager  # noqa: F401
 from .scheduler import Scheduler  # noqa: F401
 
 __title__ = "aioscheduler"
-__version__ = "1.0.0"
+__version__ = "1.1.1"
 __author__ = "Jens Reidel"
 __license__ = "MIT"
 __copyright__ = "Copyright 2020 (c) Jens Reidel"
