@@ -6,6 +6,10 @@ It schedules execution of coroutines at a specific time in a single task, making
 
 Tests have shown that aioscheduler can run up to 10 million timed tasks with up to 20 finishing per second when using 20 schedulers. Single tasks can easily schedule up to 10.000 tasks.
 
+## Installation
+
+`pip install aioscheduler`
+
 ## Usage
 
 aioscheduler provides several Scheduler classes that runs a main task to consume coroutines.
