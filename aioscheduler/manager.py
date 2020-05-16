@@ -21,10 +21,9 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
-from datetime import datetime
-from typing import Any, Awaitable
+from typing import Any, Type, Union
 
-from .scheduler import Scheduler
+from .scheduler import QueuedScheduler, TimedScheduler
 
 
 class Manager:
@@ -34,19 +33,23 @@ class Manager:
     Can run up to ~20 schedulers
     and ~1-10 million jobs just fine,
     depending on the concurrent finishing
-    jobs.
+    jobs and on the Scheduler backend.
     """
 
-    def __init__(self, tasks: int = 1) -> None:
+    def __init__(
+        self,
+        tasks: int = 1,
+        cls: Union[Type[TimedScheduler], Type[QueuedScheduler]] = TimedScheduler,
+    ) -> None:
         self._schedulers = []
         for i in range(tasks):
-            self._schedulers.append(Scheduler())
+            self._schedulers.append(cls())
 
     def start(self) -> None:
         for sched in self._schedulers:
             sched.start()
 
-    def schedule(self, coro: Awaitable[Any], when: datetime) -> None:
+    def schedule(self, *args: Any, **kwargs: Any) -> None:
         # Find the scheduler with less load
         sorted_by_load = sorted(self._schedulers, key=lambda x: x._task_count)
-        sorted_by_load[0].schedule(coro, when)
+        sorted_by_load[0].schedule(*args, **kwargs)

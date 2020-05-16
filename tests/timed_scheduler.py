@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 
 sys.path.insert(0, ".")
 
-from aioscheduler import Scheduler
+from aioscheduler import TimedScheduler
 
 
 async def work(n: int) -> None:
@@ -14,7 +14,7 @@ async def work(n: int) -> None:
 
 async def main() -> None:
     starting_time = datetime.utcnow()
-    scheduler = Scheduler()
+    scheduler = TimedScheduler()
     scheduler.start()
 
     for i in range(60):

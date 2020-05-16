@@ -27,7 +27,7 @@ from datetime import datetime
 from typing import Any, Awaitable, List, Optional, Tuple
 
 
-class Scheduler:
+class TimedScheduler:
     """
     A clever scheduler for scheduling coroutine execution
     at a specific datetime within a single task
@@ -96,3 +96,32 @@ class Scheduler:
             self._next = coro, when
             self._added.set()
             self._added.clear()
+
+
+class QueuedScheduler:
+    """
+    A dumb scheduler for scheduling coroutine execution
+    in a queue of infinite length
+    """
+
+    def __init__(self) -> None:
+        # A list of all tasks, elements are (coro, datetime)
+        self._tasks: asyncio.Queue[Awaitable[Any]] = asyncio.Queue()
+        # The internal loop task
+        self._task: Optional[asyncio.Task[None]] = None
+        self._task_count = 0
+
+    def start(self) -> None:
+        self._task = asyncio.create_task(self.loop())
+
+    async def loop(self) -> None:
+        while True:
+            coro = await self._tasks.get()
+            # Run it
+            asyncio.create_task(coro)
+            # Get the next task sorted by time
+            self._task_count -= 1
+
+    def schedule(self, coro: Awaitable[Any]) -> None:
+        self._task_count += 1
+        self._tasks.put_nowait(coro)
