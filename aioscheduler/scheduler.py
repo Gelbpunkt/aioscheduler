@@ -117,9 +117,9 @@ class QueuedScheduler:
     async def loop(self) -> None:
         while True:
             coro = await self._tasks.get()
-            # Run it
-            asyncio.create_task(coro)
-            # Get the next task sorted by time
+            # Run it in the current task
+            # else this scheduler would be pointless
+            await coro
             self._task_count -= 1
 
     def schedule(self, coro: Awaitable[Any]) -> None:
