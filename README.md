@@ -14,7 +14,7 @@ Tests have shown that aioscheduler can run up to 10 million timed tasks with up 
 
 aioscheduler provides several Scheduler classes that runs a main task to consume coroutines.
 
-There are `QueuedScheduler` and `TimedScheduler`, whereas TimedScheduler is the default for Managers.
+There are `QueuedScheduler/LifoQueuedScheduler` and `TimedScheduler`, whereas TimedScheduler is the default for Managers.
 
 The TimedScheduler compares datetime objects to UTC by default, to disable it, pass `prefer_utc=False` to the constructor.
 
