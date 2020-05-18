@@ -22,7 +22,11 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 from .manager import Manager  # noqa: F401
-from .scheduler import QueuedScheduler, TimedScheduler  # noqa: F401
+from .scheduler import (  # noqa: F401
+    LifoQueuedScheduler,
+    QueuedScheduler,
+    TimedScheduler,
+)
 
 __title__ = "aioscheduler"
 __version__ = "1.2.0"

@@ -45,7 +45,10 @@ class TimedScheduler:
         self._added = asyncio.Event()
         # Event fired when the loop needs to reset
         self._restart = asyncio.Event()
-        self._datetime_func = datetime.utcnow if prefer_utc else datetime.now
+        if prefer_utc:
+            self._datetime_func = datetime.utcnow
+        else:
+            self._datetime_func = datetime.now
 
     def start(self) -> None:
         self._task = asyncio.create_task(self.loop())
@@ -126,3 +129,14 @@ class QueuedScheduler:
     def schedule(self, coro: Awaitable[Any]) -> None:
         self._task_count += 1
         self._tasks.put_nowait(coro)
+
+
+class LifoQueuedScheduler(QueuedScheduler):
+    """
+    A dumb scheduler like QueuedScheduler,
+    but uses a Last-in-first-out queue
+    """
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._tasks: asyncio.LifoQueue[Awaitable[Any]] = asyncio.LifoQueue()

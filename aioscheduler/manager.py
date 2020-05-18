@@ -45,7 +45,8 @@ class Manager:
     ) -> None:
         self._schedulers = []
         for i in range(tasks):
-            self._schedulers.append(cls(*args, **kwargs))
+            self._schedulers.append(cls(*args, **kwargs))  # type: ignore
+            # mypy does not like args and kwargs
 
     def start(self) -> None:
         for sched in self._schedulers:
