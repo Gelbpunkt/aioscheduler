@@ -16,6 +16,8 @@ aioscheduler provides several Scheduler classes that runs a main task to consume
 
 There are `QueuedScheduler` and `TimedScheduler`, whereas TimedScheduler is the default for Managers.
 
+The TimedScheduler compares datetime objects to UTC by default, to disable it, pass `prefer_utc=False` to the constructor.
+
 ```py
 import asyncio
 from datetime import datetime, timedelta

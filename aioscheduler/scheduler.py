@@ -33,7 +33,7 @@ class TimedScheduler:
     at a specific datetime within a single task
     """
 
-    def __init__(self) -> None:
+    def __init__(self, prefer_utc: bool = True) -> None:
         # A list of all tasks, elements are (coro, datetime)
         self._tasks: List[Tuple[Awaitable[Any], datetime]] = []
         # The internal loop task
@@ -45,6 +45,7 @@ class TimedScheduler:
         self._added = asyncio.Event()
         # Event fired when the loop needs to reset
         self._restart = asyncio.Event()
+        self._datetime_func = datetime.utcnow if prefer_utc else datetime.now
 
     def start(self) -> None:
         self._task = asyncio.create_task(self.loop())
@@ -59,7 +60,7 @@ class TimedScheduler:
             # Sleep until task will be executed
             done, pending = await asyncio.wait(
                 [
-                    asyncio.sleep((time - datetime.utcnow()).total_seconds()),
+                    asyncio.sleep((time - self._datetime_func()).total_seconds()),
                     self._restart.wait(),
                 ],
                 return_when=asyncio.FIRST_COMPLETED,
@@ -81,7 +82,7 @@ class TimedScheduler:
                 self._task_count = 0
 
     def schedule(self, coro: Awaitable[Any], when: datetime) -> None:
-        if when < datetime.utcnow():
+        if when < self._datetime_func():
             raise ValueError("May only be in the future.")
         self._task_count += 1
         if self._next:

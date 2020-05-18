@@ -40,10 +40,12 @@ class Manager:
         self,
         tasks: int = 1,
         cls: Union[Type[TimedScheduler], Type[QueuedScheduler]] = TimedScheduler,
+        *args: Any,
+        **kwargs: Any,
     ) -> None:
         self._schedulers = []
         for i in range(tasks):
-            self._schedulers.append(cls())
+            self._schedulers.append(cls(*args, **kwargs))
 
     def start(self) -> None:
         for sched in self._schedulers:
