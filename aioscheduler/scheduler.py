@@ -25,7 +25,10 @@ import asyncio
 import heapq
 
 from datetime import datetime
-from typing import Any, Awaitable, List, Optional, Tuple
+from typing import Any, Awaitable, List, Optional
+from uuid import uuid4
+
+from .task import Task
 
 
 class TimedScheduler:
@@ -35,13 +38,13 @@ class TimedScheduler:
     """
 
     def __init__(self, prefer_utc: bool = True) -> None:
-        # A list of all tasks, elements are (datetime, coro)
-        self._tasks: List[Tuple[datetime, Awaitable[Any]]] = []
+        # A list of all tasks
+        self._tasks: List[Task] = []
         # The internal loop task
         self._task: Optional[asyncio.Task[None]] = None
         self._task_count = 0
         # The next task to run, (datetime, coro)
-        self._next: Optional[Tuple[datetime, Awaitable[Any]]] = None
+        self._next: Optional[Task] = None
         # Event fired when a initial task is added
         self._added = asyncio.Event()
         # Event fired when the loop needs to reset
@@ -59,12 +62,15 @@ class TimedScheduler:
             if self._next is None:
                 # Wait for a task
                 await self._added.wait()
-            assert self._next is not None  # mypy fix
-            time, coro = self._next
+            assert self._next is not None and isinstance(
+                self._next.priority, datetime
+            )  # mypy fix
             # Sleep until task will be executed
             done, pending = await asyncio.wait(
                 [
-                    asyncio.sleep((time - self._datetime_func()).total_seconds()),
+                    asyncio.sleep(
+                        (self._next.priority - self._datetime_func()).total_seconds()
+                    ),
                     self._restart.wait(),
                 ],
                 return_when=asyncio.FIRST_COMPLETED,
@@ -73,7 +79,7 @@ class TimedScheduler:
             if fut.result() is True:  # restart event
                 continue
             # Run it
-            asyncio.create_task(coro)
+            asyncio.create_task(self._next.callback)
             # Get the next task sorted by time
             try:
                 self._next = heapq.heappop(self._tasks)
@@ -86,16 +92,18 @@ class TimedScheduler:
         if when < self._datetime_func():
             raise ValueError("May only be in the future.")
         self._task_count += 1
+        task = Task(priority=when, uuid=uuid4(), callback=coro)
         if self._next:
-            if when < self._next[0]:
+            assert isinstance(self._next.priority, datetime)  # mypy fix
+            if when < self._next.priority:
                 heapq.heappush(self._tasks, self._next)
-                self._next = when, coro
+                self._next = task
                 self._restart.set()
                 self._restart.clear()
             else:
-                heapq.heappush(self._tasks, (when, coro))
+                heapq.heappush(self._tasks, task)
         else:
-            self._next = when, coro
+            self._next = task
             self._added.set()
             self._added.clear()
 
@@ -108,7 +116,7 @@ class QueuedScheduler:
 
     def __init__(self) -> None:
         # A list of all tasks, elements are (coro, datetime)
-        self._tasks: asyncio.Queue[Awaitable[Any]] = asyncio.Queue()
+        self._tasks: asyncio.Queue[Task] = asyncio.Queue()
         # The internal loop task
         self._task: Optional[asyncio.Task[None]] = None
         self._task_count = 0
@@ -118,15 +126,16 @@ class QueuedScheduler:
 
     async def loop(self) -> None:
         while True:
-            coro = await self._tasks.get()
+            task = await self._tasks.get()
             # Run it in the current task
             # else this scheduler would be pointless
-            await coro
+            await task.callback
             self._task_count -= 1
 
     def schedule(self, coro: Awaitable[Any]) -> None:
+        task = Task(priority=0, uuid=uuid4(), callback=coro)
         self._task_count += 1
-        self._tasks.put_nowait(coro)
+        self._tasks.put_nowait(task)
 
 
 class LifoQueuedScheduler(QueuedScheduler):
@@ -137,4 +146,4 @@ class LifoQueuedScheduler(QueuedScheduler):
 
     def __init__(self) -> None:
         super().__init__()
-        self._tasks: asyncio.LifoQueue[Awaitable[Any]] = asyncio.LifoQueue()
+        self._tasks: asyncio.LifoQueue[Task] = asyncio.LifoQueue()
