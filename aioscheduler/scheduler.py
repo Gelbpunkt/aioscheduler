@@ -22,6 +22,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 import asyncio
+import heapq
 
 from datetime import datetime
 from typing import Any, Awaitable, List, Optional, Tuple
@@ -34,13 +35,13 @@ class TimedScheduler:
     """
 
     def __init__(self, prefer_utc: bool = True) -> None:
-        # A list of all tasks, elements are (coro, datetime)
-        self._tasks: List[Tuple[Awaitable[Any], datetime]] = []
+        # A list of all tasks, elements are (datetime, coro)
+        self._tasks: List[Tuple[datetime, Awaitable[Any]]] = []
         # The internal loop task
         self._task: Optional[asyncio.Task[None]] = None
         self._task_count = 0
-        # The next task to run, (coro, datetime)
-        self._next: Optional[Tuple[Awaitable[Any], datetime]] = None
+        # The next task to run, (datetime, coro)
+        self._next: Optional[Tuple[datetime, Awaitable[Any]]] = None
         # Event fired when a initial task is added
         self._added = asyncio.Event()
         # Event fired when the loop needs to reset
@@ -59,7 +60,7 @@ class TimedScheduler:
                 # Wait for a task
                 await self._added.wait()
             assert self._next is not None  # mypy fix
-            coro, time = self._next
+            time, coro = self._next
             # Sleep until task will be executed
             done, pending = await asyncio.wait(
                 [
@@ -74,13 +75,10 @@ class TimedScheduler:
             # Run it
             asyncio.create_task(coro)
             # Get the next task sorted by time
-            next_tasks = sorted(enumerate(self._tasks), key=lambda elem: elem[1][1])
-            if next_tasks:
-                idx, task = next_tasks[0]
-                self._next = task
-                del self._tasks[idx]
+            try:
+                self._next = heapq.heappop(self._tasks)
                 self._task_count -= 1
-            else:
+            except IndexError:
                 self._next = None
                 self._task_count = 0
 
@@ -89,15 +87,15 @@ class TimedScheduler:
             raise ValueError("May only be in the future.")
         self._task_count += 1
         if self._next:
-            if when < self._next[1]:
-                self._tasks.append(self._next)
-                self._next = coro, when
+            if when < self._next[0]:
+                heapq.heappush(self._tasks, self._next)
+                self._next = when, coro
                 self._restart.set()
                 self._restart.clear()
             else:
-                self._tasks.append((coro, when))
+                heapq.heappush(self._tasks, (when, coro))
         else:
-            self._next = coro, when
+            self._next = when, coro
             self._added.set()
             self._added.clear()
 
