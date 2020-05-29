@@ -9,7 +9,7 @@ from aioscheduler import TimedScheduler
 
 
 async def work(n: int) -> None:
-    await asyncio.sleep(5)
+    await asyncio.sleep(60)
     print(f"I am doing heavy work: {n}")
 
 
@@ -19,15 +19,21 @@ async def main() -> None:
     scheduler.start()
     tasks = []
 
-    for i in range(60):
+    for i in range(50):
         tasks.append(
             scheduler.schedule(work(i), starting_time + timedelta(seconds=5 + i))
         )
 
-    while True:
-        print(scheduler.cancel(tasks[10]))
-        del tasks[10]
-        await asyncio.sleep(5)
+    await asyncio.sleep(10)
+    print(len(scheduler._running))
+    print(len(scheduler._tasks))
+    # Task is running
+    print(scheduler.cancel(tasks[0]))
+    # Task is scheduled
+    print(scheduler.cancel(tasks[-1]))
+    print(len(scheduler._running))
+    print(len(scheduler._tasks))
+    await asyncio.sleep(5)
 
 
 asyncio.run(main())

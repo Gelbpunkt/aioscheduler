@@ -4,7 +4,7 @@ aioscheduler is a scalable and high-performance task scheduler for asyncio.
 
 It schedules execution of coroutines at a specific time in a single task, making it lightweight and extremely scalable by adding a manager for multiple schedulers.
 
-Tests have shown that aioscheduler can run up to 10 million timed tasks with up to 20 finishing per second when using 20 schedulers. Single tasks can easily schedule up to 10.000 tasks.
+Tests have shown that aioscheduler can run up to 10 million timed tasks with up to 20 finishing per second when using 20 schedulers. Single tasks can easily schedule up to 10.000 tasks. This is based on tests on a Xeon E5 1650v3.
 
 ## Installation
 
@@ -68,6 +68,8 @@ asyncio.run(main())
 ```
 
 The manager distributes the tasks across multiple schedulers internally and acts as a load-balancer.
+
+`schedule()` returns a Task object, you may cancel a task after scheduling by running `scheduler.cancel(task)` (or `manager.cancel(task)`). The manager is less efficient for cancelling.
 
 ## License
 

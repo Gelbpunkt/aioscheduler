@@ -24,6 +24,7 @@ SOFTWARE.
 from typing import Any, Type, Union
 
 from .scheduler import QueuedScheduler, TimedScheduler
+from .task import Task
 
 
 class Manager:
@@ -52,7 +53,13 @@ class Manager:
         for sched in self._schedulers:
             sched.start()
 
-    def schedule(self, *args: Any, **kwargs: Any) -> None:
+    def cancel(self, task: Task) -> bool:
+        for sched in self._schedulers:
+            if sched.cancel(task):
+                return True
+        return False
+
+    def schedule(self, *args: Any, **kwargs: Any) -> Task:
         # Find the scheduler with less load
         sorted_by_load = sorted(self._schedulers, key=lambda x: x._task_count)
-        sorted_by_load[0].schedule(*args, **kwargs)
+        return sorted_by_load[0].schedule(*args, **kwargs)

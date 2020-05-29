@@ -21,12 +21,15 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
+from __future__ import annotations
+
 import asyncio
 import heapq
 
 from datetime import datetime
-from typing import Any, Awaitable, List, Optional
-from uuid import uuid4
+from functools import partial
+from typing import Any, Awaitable, List, Optional, Set, Tuple
+from uuid import UUID, uuid4
 
 from .task import Task
 
@@ -43,6 +46,8 @@ class TimedScheduler:
         # The internal loop task
         self._task: Optional[asyncio.Task[None]] = None
         self._task_count = 0
+        # All running tasks
+        self._running: List[Tuple[Task, asyncio.Task[Any]]] = []
         # The next task to run, (datetime, coro)
         self._next: Optional[Task] = None
         # Event fired when a initial task is added
@@ -62,14 +67,15 @@ class TimedScheduler:
             if self._next is None:
                 # Wait for a task
                 await self._added.wait()
-            assert self._next is not None and isinstance(
-                self._next.priority, datetime
+            next_ = self._next
+            assert next_ is not None and isinstance(
+                next_.priority, datetime
             )  # mypy fix
             # Sleep until task will be executed
             done, pending = await asyncio.wait(
                 [
                     asyncio.sleep(
-                        (self._next.priority - self._datetime_func()).total_seconds()
+                        (next_.priority - self._datetime_func()).total_seconds()
                     ),
                     self._restart.wait(),
                 ],
@@ -79,7 +85,9 @@ class TimedScheduler:
             if fut.result() is True:  # restart event
                 continue
             # Run it
-            asyncio.create_task(self._next.callback)
+            task = asyncio.create_task(next_.callback)
+            self._running.append((next_, task))
+            task.add_done_callback(partial(self._callback, task_obj=next_))
             # Get the next task sorted by time
             try:
                 self._next = heapq.heappop(self._tasks)
@@ -88,7 +96,25 @@ class TimedScheduler:
                 self._next = None
                 self._task_count = 0
 
-    def schedule(self, coro: Awaitable[Any], when: datetime) -> None:
+    def _callback(self, task: asyncio.Task[Any], task_obj: Task) -> None:
+        for idx, (running_task, asyncio_task) in enumerate(self._running):
+            if running_task.uuid == task_obj.uuid:
+                del self._running[idx]
+
+    def cancel(self, task: Task) -> bool:
+        for idx, (running_task, asyncio_task) in enumerate(self._running):
+            if running_task.uuid == task.uuid:
+                del self._running[idx]
+                asyncio_task.cancel()
+                return True
+        for idx, scheduled_task in enumerate(self._tasks):
+            if scheduled_task.uuid == task.uuid:
+                del self._tasks[idx]
+                heapq.heapify(self._tasks)
+                return True
+        return False
+
+    def schedule(self, coro: Awaitable[Any], when: datetime) -> Task:
         if when < self._datetime_func():
             raise ValueError("May only be in the future.")
         self._task_count += 1
@@ -121,6 +147,11 @@ class QueuedScheduler:
         # The internal loop task
         self._task: Optional[asyncio.Task[None]] = None
         self._task_count = 0
+        # current running task
+        self._current_uuid: Optional[UUID] = None
+        self._current_task: Optional[asyncio.Task[Any]] = None
+        # cancelled UUIDs
+        self._cancelled: Set[UUID] = set()
 
     def start(self) -> None:
         self._task = asyncio.create_task(self.loop())
@@ -128,12 +159,27 @@ class QueuedScheduler:
     async def loop(self) -> None:
         while True:
             task = await self._tasks.get()
+            if task.uuid in self._cancelled:
+                continue
             # Run it in the current task
             # else this scheduler would be pointless
-            await task.callback
+            self._current_task = asyncio.create_task(task.callback)
+            self._current_uuid = task.uuid
+            try:
+                await self._current_task
+            except asyncio.CancelledError:
+                self._task_count -= 1
+                continue
             self._task_count -= 1
 
-    def schedule(self, coro: Awaitable[Any]) -> None:
+    def cancel(self, task: Task) -> bool:
+        if task.uuid == self._current_uuid and self._current_task:
+            self._current_task.cancel()
+        else:
+            self._cancelled.add(task.uuid)
+        return True
+
+    def schedule(self, coro: Awaitable[Any]) -> Task:
         task = Task(priority=0, uuid=uuid4(), callback=coro)
         self._task_count += 1
         self._tasks.put_nowait(task)
