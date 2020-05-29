@@ -106,6 +106,7 @@ class TimedScheduler:
             self._next = task
             self._added.set()
             self._added.clear()
+        return task
 
 
 class QueuedScheduler:
@@ -136,6 +137,7 @@ class QueuedScheduler:
         task = Task(priority=0, uuid=uuid4(), callback=coro)
         self._task_count += 1
         self._tasks.put_nowait(task)
+        return task
 
 
 class LifoQueuedScheduler(QueuedScheduler):
