@@ -14,7 +14,9 @@ async def work(n: int) -> None:
 
 async def main() -> None:
     starting_time = datetime.now()
-    manager = Manager(5, prefer_utc=False)  # The number of Schedulers to use
+    manager = Manager(
+        5, max_tasks=100, prefer_utc=False
+    )  # The number of Schedulers to use
     manager.start()
 
     for i in range(300):

@@ -71,6 +71,8 @@ The manager distributes the tasks across multiple schedulers internally and acts
 
 `schedule()` returns a Task object, you may cancel a task after scheduling by running `scheduler.cancel(task)` (or `manager.cancel(task)`). The manager is less efficient for cancelling.
 
+To limit the amount of tasks scheduled, there is a `max_tasks` argument that takes a positive integer. It is advised to use this in production enviroments of known task queue sizes and available on both Scheduler and Manager.
+
 ## License
 
 MIT

@@ -40,7 +40,9 @@ class TimedScheduler:
     at a specific datetime within a single task
     """
 
-    def __init__(self, prefer_utc: bool = True) -> None:
+    def __init__(
+        self, max_tasks: Optional[int] = None, prefer_utc: bool = True
+    ) -> None:
         # A list of all tasks
         self._tasks: List[Task] = []
         # The internal loop task
@@ -54,6 +56,8 @@ class TimedScheduler:
         self._added = asyncio.Event()
         # Event fired when the loop needs to reset
         self._restart = asyncio.Event()
+        # Maximum tasks to schedule
+        self._max_tasks = max_tasks
         if prefer_utc:
             self._datetime_func = datetime.utcnow
         else:
@@ -72,7 +76,7 @@ class TimedScheduler:
                 next_.priority, datetime
             )  # mypy fix
             # Sleep until task will be executed
-            done, pending = await asyncio.wait(
+            done, _ = await asyncio.wait(
                 [
                     asyncio.sleep(
                         (next_.priority - self._datetime_func()).total_seconds()
@@ -97,7 +101,7 @@ class TimedScheduler:
                 self._task_count = 0
 
     def _callback(self, task: asyncio.Task[Any], task_obj: Task) -> None:
-        for idx, (running_task, asyncio_task) in enumerate(self._running):
+        for idx, (running_task, _) in enumerate(self._running):
             if running_task.uuid == task_obj.uuid:
                 del self._running[idx]
 
@@ -115,6 +119,8 @@ class TimedScheduler:
         return False
 
     def schedule(self, coro: Awaitable[Any], when: datetime) -> Task:
+        if self._max_tasks is not None and self._task_count >= self._max_tasks:
+            raise ValueError(f"Maximum tasks of {self._max_tasks} reached")
         if when < self._datetime_func():
             raise ValueError("May only be in the future.")
         self._task_count += 1
@@ -141,7 +147,7 @@ class QueuedScheduler:
     in a queue of infinite length
     """
 
-    def __init__(self) -> None:
+    def __init__(self, max_tasks: Optional[int] = None) -> None:
         # A list of all tasks, elements are (coro, datetime)
         self._tasks: asyncio.Queue[Task] = asyncio.Queue()
         # The internal loop task
@@ -152,6 +158,8 @@ class QueuedScheduler:
         self._current_task: Optional[asyncio.Task[Any]] = None
         # cancelled UUIDs
         self._cancelled: Set[UUID] = set()
+        # Maximum tasks to schedule
+        self._max_tasks = max_tasks
 
     def start(self) -> None:
         self._task = asyncio.create_task(self.loop())
@@ -180,6 +188,8 @@ class QueuedScheduler:
         return True
 
     def schedule(self, coro: Awaitable[Any]) -> Task:
+        if self._max_tasks is not None and self._task_count >= self._max_tasks:
+            raise ValueError(f"Maximum tasks of {self._max_tasks} reached")
         task = Task(priority=0, uuid=uuid4(), callback=coro)
         self._task_count += 1
         self._tasks.put_nowait(task)
@@ -192,6 +202,6 @@ class LifoQueuedScheduler(QueuedScheduler):
     but uses a Last-in-first-out queue
     """
 
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
         self._tasks: asyncio.LifoQueue[Task] = asyncio.LifoQueue()

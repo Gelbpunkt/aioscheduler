@@ -15,7 +15,7 @@ async def work(n: int) -> None:
 
 async def main() -> None:
     starting_time = datetime.utcnow()
-    scheduler = TimedScheduler()
+    scheduler = TimedScheduler(max_tasks=20)
     scheduler.start()
     tasks = []
 

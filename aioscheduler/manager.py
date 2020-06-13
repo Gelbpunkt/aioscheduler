@@ -21,7 +21,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
-from typing import Any, Type, Union
+from typing import Any, Optional, Type, Union
 
 from .scheduler import QueuedScheduler, TimedScheduler
 from .task import Task
@@ -39,15 +39,20 @@ class Manager:
 
     def __init__(
         self,
-        tasks: int = 1,
+        schedulers: int = 1,
+        max_tasks: Optional[int] = None,
         cls: Union[Type[TimedScheduler], Type[QueuedScheduler]] = TimedScheduler,
         *args: Any,
         **kwargs: Any,
     ) -> None:
         self._schedulers = []
-        for i in range(tasks):
-            self._schedulers.append(cls(*args, **kwargs))  # type: ignore
-            # mypy does not like args and kwargs
+        for _ in range(schedulers):
+            self._schedulers.append(cls(*args, **kwargs))
+        self._max_tasks = max_tasks
+
+    @property
+    def _task_count(self) -> int:
+        return sum(i._task_count for i in self._schedulers)
 
     def start(self) -> None:
         for sched in self._schedulers:
@@ -60,6 +65,8 @@ class Manager:
         return False
 
     def schedule(self, *args: Any, **kwargs: Any) -> Task:
+        if self._max_tasks is not None and self._task_count >= self._max_tasks:
+            raise ValueError(f"Maximum tasks of {self._max_tasks} reached")
         # Find the scheduler with less load
         sorted_by_load = sorted(self._schedulers, key=lambda x: x._task_count)
         return sorted_by_load[0].schedule(*args, **kwargs)
