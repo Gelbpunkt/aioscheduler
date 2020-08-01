@@ -106,6 +106,12 @@ class TimedScheduler:
                 del self._running[idx]
 
     def cancel(self, task: Task) -> bool:
+        if self._next is not None and task.uuid == self._next.uuid:
+            self._next = heapq.heappop(self._tasks)
+            self._task_count -= 1
+            self._restart.set()
+            self._restart.clear()
+            return True
         for idx, (running_task, asyncio_task) in enumerate(self._running):
             if running_task.uuid == task.uuid:
                 del self._running[idx]
@@ -114,6 +120,7 @@ class TimedScheduler:
         for idx, scheduled_task in enumerate(self._tasks):
             if scheduled_task.uuid == task.uuid:
                 del self._tasks[idx]
+                self._task_count -= 1
                 heapq.heapify(self._tasks)
                 return True
         return False
