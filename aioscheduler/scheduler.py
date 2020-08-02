@@ -107,7 +107,10 @@ class TimedScheduler:
 
     def cancel(self, task: Task) -> bool:
         if self._next is not None and task.uuid == self._next.uuid:
-            self._next = heapq.heappop(self._tasks)
+            if self._tasks:
+                self._next = heapq.heappop(self._tasks)
+            else:
+                self._next = None
             self._task_count -= 1
             self._restart.set()
             self._restart.clear()
