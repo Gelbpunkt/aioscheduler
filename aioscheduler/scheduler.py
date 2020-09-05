@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import asyncio
 import heapq
+import warnings
 
 from datetime import datetime
 from functools import partial
@@ -106,27 +107,30 @@ class TimedScheduler:
                 del self._running[idx]
 
     def cancel(self, task: Task) -> bool:
-        if self._next is not None and task.uuid == self._next.uuid:
-            if self._tasks:
-                self._next = heapq.heappop(self._tasks)
-            else:
-                self._next = None
-            self._task_count -= 1
-            self._restart.set()
-            self._restart.clear()
-            return True
-        for idx, (running_task, asyncio_task) in enumerate(self._running):
-            if running_task.uuid == task.uuid:
-                del self._running[idx]
-                asyncio_task.cancel()
-                return True
-        for idx, scheduled_task in enumerate(self._tasks):
-            if scheduled_task.uuid == task.uuid:
-                del self._tasks[idx]
+        # asyncio does not like cancelling coroutines
+        # so just suppress it
+        with warnings.catch_warnings():
+            if self._next is not None and task.uuid == self._next.uuid:
+                if self._tasks:
+                    self._next = heapq.heappop(self._tasks)
+                else:
+                    self._next = None
                 self._task_count -= 1
-                heapq.heapify(self._tasks)
+                self._restart.set()
+                self._restart.clear()
                 return True
-        return False
+            for idx, (running_task, asyncio_task) in enumerate(self._running):
+                if running_task.uuid == task.uuid:
+                    del self._running[idx]
+                    asyncio_task.cancel()
+                    return True
+            for idx, scheduled_task in enumerate(self._tasks):
+                if scheduled_task.uuid == task.uuid:
+                    del self._tasks[idx]
+                    self._task_count -= 1
+                    heapq.heapify(self._tasks)
+                    return True
+            return False
 
     def schedule(self, coro: Awaitable[Any], when: datetime) -> Task:
         if self._max_tasks is not None and self._task_count >= self._max_tasks:
