@@ -66,7 +66,7 @@ class TimedScheduler:
 
     @property
     def is_started(self) -> bool:
-        return bool(self._task)
+        return self._task is not None and not self._task.done()
 
     def start(self) -> None:
         self._task = asyncio.create_task(self.loop())
@@ -181,7 +181,7 @@ class QueuedScheduler:
 
     @property
     def is_started(self) -> bool:
-        return bool(self._task)
+        return self._task is not None and not self._task.done()
 
     def start(self) -> None:
         self._task = asyncio.create_task(self.loop())
