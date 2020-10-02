@@ -63,9 +63,12 @@ class TimedScheduler:
             self._datetime_func = datetime.utcnow
         else:
             self._datetime_func = datetime.now
+        # Indicator if the scheduler is running
+        self._started: bool = False
 
     def start(self) -> None:
         self._task = asyncio.create_task(self.loop())
+        self._started = True
 
     async def loop(self) -> None:
         while True:
@@ -174,9 +177,12 @@ class QueuedScheduler:
         self._cancelled: Set[UUID] = set()
         # Maximum tasks to schedule
         self._max_tasks = max_tasks
+        # Indicator if the scheduler is running
+        self._started: bool = False
 
     def start(self) -> None:
         self._task = asyncio.create_task(self.loop())
+        self._started = True
 
     async def loop(self) -> None:
         while True:
