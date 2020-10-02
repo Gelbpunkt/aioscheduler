@@ -64,6 +64,10 @@ class TimedScheduler:
         else:
             self._datetime_func = datetime.now
 
+    @property
+    def is_started(self) -> bool:
+        return self._task is not None and not self._task.done()
+
     def start(self) -> None:
         self._task = asyncio.create_task(self.loop())
 
@@ -174,6 +178,10 @@ class QueuedScheduler:
         self._cancelled: Set[UUID] = set()
         # Maximum tasks to schedule
         self._max_tasks = max_tasks
+
+    @property
+    def is_started(self) -> bool:
+        return self._task is not None and not self._task.done()
 
     def start(self) -> None:
         self._task = asyncio.create_task(self.loop())
