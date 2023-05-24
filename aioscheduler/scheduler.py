@@ -83,10 +83,10 @@ class TimedScheduler:
             # Sleep until task will be executed
             done, _ = await asyncio.wait(
                 [
-                    asyncio.sleep(
+                    asyncio.create_task(asyncio.sleep(
                         (next_.priority - self._datetime_func()).total_seconds()
-                    ),
-                    self._restart.wait(),
+                    )),
+                    asyncio.create_task(self._restart.wait()),
                 ],
                 return_when=asyncio.FIRST_COMPLETED,
             )
