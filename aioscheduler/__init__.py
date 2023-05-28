@@ -29,7 +29,7 @@ from .scheduler import (  # noqa: F401
 )
 
 __title__ = "aioscheduler"
-__version__ = "1.4.2"
+__version__ = "1.5.0"
 __author__ = "Jens Reidel"
 __license__ = "MIT"
 __copyright__ = "Copyright 2020 (c) Jens Reidel"

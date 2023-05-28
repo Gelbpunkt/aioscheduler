@@ -27,7 +27,7 @@ import asyncio
 import heapq
 import warnings
 
-from datetime import datetime
+from datetime import datetime, timezone
 from functools import partial
 from typing import Any, Awaitable, List, Optional, Set, Tuple
 from uuid import UUID, uuid4
@@ -42,7 +42,7 @@ class TimedScheduler:
     """
 
     def __init__(
-        self, max_tasks: Optional[int] = None, prefer_utc: bool = True
+        self, max_tasks: Optional[int] = None, prefer_utc: bool = True, timezone_aware:bool = False
     ) -> None:
         # A list of all tasks
         self._tasks: List[Task] = []
@@ -59,10 +59,13 @@ class TimedScheduler:
         self._restart = asyncio.Event()
         # Maximum tasks to schedule
         self._max_tasks = max_tasks
-        if prefer_utc:
-            self._datetime_func = datetime.utcnow
+        if timezone_aware:
+            self._datetime_func = partial(datetime.now, timezone.utc)
         else:
-            self._datetime_func = datetime.now
+            if prefer_utc:
+                self._datetime_func = datetime.utcnow
+            else:
+                self._datetime_func = datetime.now
 
     @property
     def is_started(self) -> bool:
@@ -81,15 +84,17 @@ class TimedScheduler:
                 next_.priority, datetime
             )  # mypy fix
             # Sleep until task will be executed
-            done, _ = await asyncio.wait(
+            done, pending = await asyncio.wait(
                 [
-                    asyncio.sleep(
+                    asyncio.create_task(asyncio.sleep(
                         (next_.priority - self._datetime_func()).total_seconds()
-                    ),
-                    self._restart.wait(),
+                    )),
+                    asyncio.create_task(self._restart.wait()),
                 ],
                 return_when=asyncio.FIRST_COMPLETED,
             )
+            for task in pending:
+                task.cancel()
             fut = done.pop()
             if fut.result() is True:  # restart event
                 continue
