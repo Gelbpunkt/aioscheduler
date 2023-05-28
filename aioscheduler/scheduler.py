@@ -84,7 +84,7 @@ class TimedScheduler:
                 next_.priority, datetime
             )  # mypy fix
             # Sleep until task will be executed
-            done, _ = await asyncio.wait(
+            done, pending = await asyncio.wait(
                 [
                     asyncio.create_task(asyncio.sleep(
                         (next_.priority - self._datetime_func()).total_seconds()
@@ -93,6 +93,8 @@ class TimedScheduler:
                 ],
                 return_when=asyncio.FIRST_COMPLETED,
             )
+            for task in pending:
+                task.cancel()
             fut = done.pop()
             if fut.result() is True:  # restart event
                 continue
